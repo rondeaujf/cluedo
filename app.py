@@ -3,7 +3,7 @@ from pycsp3 import *
 
 app = Flask(__name__)
 
-# Données statiques
+# Configuration du jeu
 suspects = ["Rose", "Moutarde", "Pervenche", "Olive", "Leblanc", "Violet"]
 armes = ["Poignard", "Chandelier", "Revolver", "Corde", "Matraque", "Cle"]
 lieux = ["Cuisine", "GrandSalon", "PetitSalon", "SalleAManger", "Bureau", "Bibliotheque", "Billard", "Hall", "Veranda"]
@@ -16,50 +16,53 @@ def index():
 @app.route('/solve', methods=['POST'])
 def solve_cluedo():
     data = request.json
-    indices = data.get('indices', []) # Liste d'objets {type: 'negatif/positif', joueur: 0, cartes: []}
+    indices = data.get('indices', [])
+    n_joueurs = int(data.get('n_joueurs', 3))
     
-    clear() # Réinitialise le modèle PyCSP3
+    clear() # Reset PyCSP3
     
-    n_joueurs = 3 
-    proprietaires = ["Moi", "Joueur_1", "Joueur_2", "Enveloppe"]
-    env_idx = 3
+    # Propriétaires : [Moi, Joueur_1, ..., Enveloppe]
+    proprietaires = ["Moi"] + [f"Joueur_{i+1}" for i in range(n_joueurs - 1)] + ["Enveloppe"]
+    env_idx = len(proprietaires) - 1
     
-    # Variables
+    # Matrice binaire [Carte][Propriétaire]
     mat = VarArray(size=[len(toutes_cartes), len(proprietaires)], dom={0, 1})
 
-    # Contraintes structurelles
+    # --- CONTRAINTES ---
+    # 1. Chaque carte appartient à exactement une personne (ou l'enveloppe)
     for c in range(len(toutes_cartes)):
         satisfy(Sum(mat[c]) == 1)
     
-    # L'enveloppe
-    satisfy(Sum(mat[i][env_idx] for i in range(len(suspects))) == 1)
-    satisfy(Sum(mat[i+6][env_idx] for i in range(len(armes))) == 1)
-    satisfy(Sum(mat[i+12][env_idx] for i in range(len(lieux))) == 1)
+    # 2. L'enveloppe contient 1 suspect, 1 arme, 1 lieu
+    satisfy(Sum(mat[i][env_idx] for i in range(0, 6)) == 1)      # Suspects
+    satisfy(Sum(mat[i][env_idx] for i in range(6, 12)) == 1)     # Armes
+    satisfy(Sum(mat[i][env_idx] for i in range(12, 21)) == 1)    # Lieux
 
-    # Application des indices reçus de l'interface
+    # 3. Répartition équitable des cartes (18 cartes / n joueurs)
+    n_cartes_joueurs = (len(toutes_cartes) - 3)
+    min_cartes = n_cartes_joueurs // n_joueurs
+    max_cartes = min_cartes + (1 if n_cartes_joueurs % n_joueurs != 0 else 0)
+    
+    for j in range(n_joueurs):
+        satisfy(Sum(mat[c][j] for c in range(len(toutes_cartes))) >= min_cartes)
+        satisfy(Sum(mat[c][j] for c in range(len(toutes_cartes))) <= max_cartes)
+
+    # 4. Application des indices de la partie
     for ind in indices:
-        j_idx = ind['joueur']
-        c_idxs = [toutes_cartes.index(c_name) for c_name in ind['cartes']]
+        j_idx = int(ind['joueur'])
+        if j_idx >= len(proprietaires): continue
         
-        if ind['type'] == 'possession_directe': # "J'ai cette carte"
+        c_idxs = [toutes_cartes.index(c) for c in ind['cartes'] if c in toutes_cartes]
+        
+        if ind['type'] == 'possession_directe':
             satisfy(mat[c_idxs[0]][j_idx] == 1)
-        elif ind['type'] == 'negatif': # "Il n'a aucune de ces 3 cartes"
-            for c_idx in c_idxs:
-                satisfy(mat[c_idx][j_idx] == 0)
-        elif ind['type'] == 'positif': # "Il a au moins une de ces 3"
-            satisfy(Sum(mat[c_idx][j_idx] for c_idx in c_idxs) >= 1)
-        elif ind['type'] == 'montre_une_carte': 
-            # Indice de type "OU" : Le joueur possède au moins l'une de ces cartes
-            indices_cartes = []
-            for c_nom in ind['cartes']:
-                if c_nom in toutes_cartes:
-                    indices_cartes.append(toutes_cartes.index(c_nom))
-            
-            if indices_cartes:
-                # Contrainte : Somme des variables (0 ou 1) >= 1
-                satisfy(Sum(mat[c_idx][j_idx] for c_idx in indices_cartes) >= 1)
+        elif ind['type'] == 'negatif':
+            for ci in c_idxs: satisfy(mat[ci][j_idx] == 0)
+        elif ind['type'] == 'positif':
+            # "A montré une carte" = au moins l'une des 3 est chez lui
+            satisfy(Sum(mat[ci][j_idx] for ci in c_idxs) >= 1)
 
-    # Résolution
+    # --- RÉSOLUTION ---
     if solve() is SAT:
         res = {
             "coupable": suspects[values(mat[0:6, env_idx]).index(1)],
@@ -71,12 +74,4 @@ def solve_cluedo():
     return jsonify({"status": "no_solution"})
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
-def normaliser_carte(nom_saisi):
-    """Retourne le nom exact de la carte ou None si non trouvé."""
-    nom_clean = nom_saisi.strip().lower()
-    mapping = {c.lower(): c for c in toutes_cartes}
-    # Gestion des alias courants
-    mapping.update({"leblanc": "Leblanc", "pervenche": "Pervenche", "cle": "Cle"})
-    return mapping.get(nom_clean)
+    app.run(debug=True, port=5000)
