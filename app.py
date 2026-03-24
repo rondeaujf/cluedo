@@ -72,3 +72,11 @@ def solve_cluedo():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+def normaliser_carte(nom_saisi):
+    """Retourne le nom exact de la carte ou None si non trouvé."""
+    nom_clean = nom_saisi.strip().lower()
+    mapping = {c.lower(): c for c in toutes_cartes}
+    # Gestion des alias courants
+    mapping.update({"leblanc": "Leblanc", "pervenche": "Pervenche", "cle": "Cle"})
+    return mapping.get(nom_clean)
