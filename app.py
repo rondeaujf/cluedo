@@ -48,6 +48,16 @@ def solve_cluedo():
                 satisfy(mat[c_idx][j_idx] == 0)
         elif ind['type'] == 'positif': # "Il a au moins une de ces 3"
             satisfy(Sum(mat[c_idx][j_idx] for c_idx in c_idxs) >= 1)
+        elif ind['type'] == 'montre_une_carte': 
+            # Indice de type "OU" : Le joueur possède au moins l'une de ces cartes
+            indices_cartes = []
+            for c_nom in ind['cartes']:
+                if c_nom in toutes_cartes:
+                    indices_cartes.append(toutes_cartes.index(c_nom))
+            
+            if indices_cartes:
+                # Contrainte : Somme des variables (0 ou 1) >= 1
+                satisfy(Sum(mat[c_idx][j_idx] for c_idx in indices_cartes) >= 1)
 
     # Résolution
     if solve() is SAT:
