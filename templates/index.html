@@ -1,32 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Cluedo Solver AI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluedo Solver AI 🕵️‍♂️</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .card-indice { border-left: 5px solid #ffc107; margin-bottom: 10px; }
+        .solution-box { font-size: 1.2rem; border: 2px dashed #198754; }
+    </style>
 </head>
 <body class="bg-light">
-<div class="container mt-5">
-    <h2 class="mb-4">🕵️‍♂️ Assistant Logique Cluedo</h2>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card p-3 shadow-sm">
-                <h5>Ajouter un indice</h5>
-                <select id="typeIndice" class="form-select mb-2">
-                    <option value="possession_directe">Je possède cette carte</option>
-                    <option value="negatif">Joueur X n'a RIEN montré</option>
-                    <option value="positif">Joueur X a montré UNE carte</option>
-                </select>
-                <input type="text" id="carteNom" class="form-control mb-2" placeholder="Nom de la carte (ex: Rose)">
-                <button onclick="ajouterIndice()" class="btn btn-primary w-100">Ajouter</button>
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1>🕵️‍♂️ Assistant Logique Cluedo</h1>
+        <p class="text-muted">L'IA qui déduit le coupable par élimination mathématique.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">Ajouter une preuve</div>
+                <div class="card-body">
+                    
+                    <h6>1. Mes cartes (Début de partie)</h6>
+                    <div class="input-group mb-3">
+                        <select id="maCarte" class="form-select">
+                            {% for c in suspects + armes + lieux %}<option value="{{c}}">{{c}}</option>{% endfor %}
+                        </select>
+                        <button onclick="ajouterFait('possession_directe', 0)" class="btn btn-outline-primary">J'ai cette carte</button>
+                    </div>
+
+                    <hr>
+
+                    <h6>2. Une suggestion a été faite</h6>
+                    <div class="mb-2">
+                        <label class="small">Qui a montré une carte ?</label>
+                        <select id="joueurSelect" class="form-select mb-2">
+                            <option value="1">Joueur 1 (Gauche)</option>
+                            <option value="2">Joueur 2 (Droite)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row g-2 mb-2">
+                        <div class="col"><select id="sS" class="form-select">{% for c in suspects %}<option>{{c}}</option>{% endfor %}</select></div>
+                        <div class="col"><select id="sA" class="form-select">{% for c in armes %}<option>{{c}}</option>{% endfor %}</select></div>
+                        <div class="col"><select id="sL" class="form-select">{% for c in lieux %}<option>{{c}}</option>{% endfor %}</select></div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button onclick="ajouterFait('positif')" class="btn btn-warning text-dark">Il a montré UNE de ces 3</button>
+                        <button onclick="ajouterFait('negatif')" class="btn btn-danger">Il n'a AUCUNE de ces 3</button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card p-3 shadow-sm">
-                <h5>Solution Déduite</h5>
-                <div id="resultat" class="alert alert-info">En attente d'indices...</div>
-                <button onclick="resoudre()" class="btn btn-success">Calculer le coupable</button>
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white d-flex justify-content-between">
+                    Journal des indices
+                    <button onclick="reinitialiser()" class="btn btn-sm btn-outline-light">Reset</button>
+                </div>
+                <div class="card-body">
+                    <div id="listeIndices" class="mb-4" style="max-height: 200px; overflow-y: auto;">
+                        <em class="text-muted">Aucun indice pour le moment...</em>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button onclick="resoudre()" class="btn btn-success btn-lg">Lancer le Solveur PyCSP3</button>
+                    </div>
+
+                    <div id="resultat" class="alert alert-secondary solution-box text-center py-4">
+                        Appuyez sur Calculer pour voir la solution.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -35,28 +84,61 @@
 <script>
     let indices = [];
 
-    function ajouterIndice() {
-        const type = document.getElementById('typeIndice').value;
-        const carte = document.getElementById('carteNom').value;
-        // Pour simplifier, on cible le Joueur 1 (index 1) ou Moi (index 0)
-        indices.push({type: type, joueur: (type === 'possession_directe' ? 0 : 1), cartes: [carte]});
-        alert("Indice ajouté !");
+    function ajouterFait(type, joueur = null) {
+        let cartes = [];
+        let j = joueur !== null ? joueur : parseInt(document.getElementById('joueurSelect').value);
+        
+        if (type === 'possession_directe') {
+            cartes = [document.getElementById('maCarte').value];
+        } else {
+            cartes = [
+                document.getElementById('sS').value,
+                document.getElementById('sA').value,
+                document.getElementById('sL').value
+            ];
+        }
+
+        indices.push({type: type, joueur: j, cartes: cartes});
+        majAffichage();
+    }
+
+    function majAffichage() {
+        const container = document.getElementById('listeIndices');
+        container.innerHTML = indices.map((ind, i) => `
+            <div class="card-indice p-2 bg-white shadow-sm rounded">
+                <small class="text-primary">#${i+1}</small> 
+                <strong>J${ind.joueur}</strong> : ${ind.type === 'positif' ? 'A montré un' : 'N\'a pas'} [${ind.cartes.join(', ')}]
+            </div>
+        `).join('');
     }
 
     async function resoudre() {
+        const resDiv = document.getElementById('resultat');
+        resDiv.innerHTML = "Reflexion en cours...";
+
         const response = await fetch('/solve', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({indices: indices})
         });
+        
         const data = await response.json();
+        
         if(data.status === "found") {
-            document.getElementById('resultat').innerHTML = 
-                `🔥 <b>${data.solution.coupable}</b> avec le <b>${data.solution.arme}</b> dans le <b>${data.solution.lieu}</b>`;
+            resDiv.className = "alert alert-success solution-box text-center py-4";
+            resDiv.innerHTML = `✨ <b>${data.solution.coupable}</b> avec le <b>${data.solution.arme}</b> dans le <b>${data.solution.lieu}</b>`;
         } else {
-            document.getElementById('resultat').innerText = "Pas encore assez de preuves !";
+            resDiv.className = "alert alert-danger solution-box text-center py-4";
+            resDiv.innerText = "❌ Aucune solution unique trouvée. Continuez à chercher !";
         }
     }
+
+    function reinitialiser() {
+        indices = [];
+        majAffichage();
+        document.getElementById('resultat').innerText = "Appuyez sur Calculer pour voir la solution.";
+    }
 </script>
+
 </body>
 </html>
