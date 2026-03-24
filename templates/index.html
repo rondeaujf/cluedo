@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cluedo Solver AI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <h2 class="mb-4">🕵️‍♂️ Assistant Logique Cluedo</h2>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card p-3 shadow-sm">
+                <h5>Ajouter un indice</h5>
+                <select id="typeIndice" class="form-select mb-2">
+                    <option value="possession_directe">Je possède cette carte</option>
+                    <option value="negatif">Joueur X n'a RIEN montré</option>
+                    <option value="positif">Joueur X a montré UNE carte</option>
+                </select>
+                <input type="text" id="carteNom" class="form-control mb-2" placeholder="Nom de la carte (ex: Rose)">
+                <button onclick="ajouterIndice()" class="btn btn-primary w-100">Ajouter</button>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card p-3 shadow-sm">
+                <h5>Solution Déduite</h5>
+                <div id="resultat" class="alert alert-info">En attente d'indices...</div>
+                <button onclick="resoudre()" class="btn btn-success">Calculer le coupable</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let indices = [];
+
+    function ajouterIndice() {
+        const type = document.getElementById('typeIndice').value;
+        const carte = document.getElementById('carteNom').value;
+        // Pour simplifier, on cible le Joueur 1 (index 1) ou Moi (index 0)
+        indices.push({type: type, joueur: (type === 'possession_directe' ? 0 : 1), cartes: [carte]});
+        alert("Indice ajouté !");
+    }
+
+    async function resoudre() {
+        const response = await fetch('/solve', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({indices: indices})
+        });
+        const data = await response.json();
+        if(data.status === "found") {
+            document.getElementById('resultat').innerHTML = 
+                `🔥 <b>${data.solution.coupable}</b> avec le <b>${data.solution.arme}</b> dans le <b>${data.solution.lieu}</b>`;
+        } else {
+            document.getElementById('resultat').innerText = "Pas encore assez de preuves !";
+        }
+    }
+</script>
+</body>
+</html>
