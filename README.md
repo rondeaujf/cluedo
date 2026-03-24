@@ -19,3 +19,21 @@ pip install flask pycsp3
 ## Lancer l'application
 python app.py
 L'interface sera accessible sur http://127.0.0.1:5000.
+
+## 🛠 Comment ça marche ?
+Le problème est modélisé sous forme de matrice binaire $M_{c,p}$ :
+
+- $c \in \{0 \dots 20\}$ (les 21 cartes du jeu)
+- $p \in \{0 \dots n\}$ (les joueurs + l'enveloppe)
+
+Le solveur impose que :
+
+1. Chaque carte a un propriétaire unique : $\sum_{p} M_{c,p} = 1$
+2. L'enveloppe contient exactement 1 Suspect, 1 Arme et 1 Lieu.
+3. Chaque joueur possède un nombre de cartes cohérent avec la distribution initiale.
+ 
+Lorsqu'un joueur montre une carte pour une suggestion (Suspect S, Arme A, Lieu L), on ajoute la contrainte :
+
+$M_{S,p} + M_{A,p} + M_{L,p} \geq 1$.
+
+## 📜 LicenceMIT - Amusez-vous bien (et gagnez toutes vos parties) !
