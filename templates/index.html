@@ -2,46 +2,70 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Cluedo AI Solver 🕵️‍♂️</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluedo AI Master Solver 🕵️‍♂️</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        body { background-color: #f4f7f6; }
-        .card-indice { border-left: 4px solid #0d6efd; margin-bottom: 8px; transition: 0.2s; }
-        .card-indice:hover { background-color: #f8f9fa; }
-        .solution-box { font-size: 1.25rem; font-weight: bold; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; border-radius: 12px; }
+        .card-header { border-radius: 12px 12px 0 0 !important; font-weight: bold; }
+        .card-indice { border-left: 5px solid #0d6efd; margin-bottom: 8px; background: #fff; transition: transform 0.1s; }
+        .card-indice:hover { transform: translateX(5px); }
+        .solution-box { min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .hypothese-list { max-height: 200px; overflow-y: auto; width: 100%; margin-top: 10px; }
+        .badge-count { font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
 <div class="container py-4">
-    <div class="row">
-        <div class="col-md-5">
-            <div class="card shadow mb-3">
-                <div class="card-header bg-dark text-white fw-bold">⚙️ Configuration</div>
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm mb-3 border-info">
                 <div class="card-body">
-                    <label class="small fw-bold">Nombre de joueurs au total :</label>
-                    <select id="n_joueurs" class="form-select mb-3" onchange="updatePlayersList()">
-                        <option value="3">3 Joueurs</option>
-                        <option value="4" selected>4 Joueurs</option>
-                        <option value="5">5 Joueurs</option>
-                        <option value="6">6 Joueurs</option>
-                    </select>
-                    
-                    <label class="small fw-bold">Ajouter mes cartes (Ma main) :</label>
-                    <div class="input-group">
-                        <select id="ma_carte_select" class="form-select">
-                            {% for c in suspects + armes + lieux %}<option value="{{c}}">{{c}}</option>{% endfor %}
-                        </select>
-                        <button class="btn btn-primary" onclick="addIndice('possession_directe', 0)">Ajouter</button>
+                    <label class="form-label fw-bold">⚙️ Configuration de la partie</label>
+                    <div class="row g-2">
+                        <div class="col-8">
+                            <select id="n_joueurs" class="form-select" onchange="resetGame()">
+                                <option value="3">3 Joueurs</option>
+                                <option value="4" selected>4 Joueurs</option>
+                                <option value="5">5 Joueurs</option>
+                                <option value="6">6 Joueurs</option>
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <button class="btn btn-outline-danger w-100" onclick="resetGame()">Reset</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white fw-bold">📝 Journal des tours</div>
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-primary text-white">🗂 Ma Main & Déductions Directes</div>
+                <div class="card-body">
+                    <div class="input-group">
+                        <select id="ma_carte_select" class="form-select">
+                            <optgroup label="Suspects">
+                                {% for c in suspects %}<option value="{{c}}">{{c}}</option>{% endfor %}
+                            </optgroup>
+                            <optgroup label="Armes">
+                                {% for c in armes %}<option value="{{c}}">{{c}}</option>{% endfor %}
+                            </optgroup>
+                            <optgroup label="Lieux">
+                                {% for c in lieux %}<option value="{{c}}">{{c}}</option>{% endfor %}
+                            </optgroup>
+                        </select>
+                        <button class="btn btn-primary" onclick="addIndice('possession_directe', 0)">Ajouter</button>
+                    </div>
+                    <small class="text-muted">Utilisez ceci pour vos cartes de départ.</small>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">🕵️‍♂️ Tour de table (Suggestions)</div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="small fw-bold">Qui a répondu ?</label>
+                        <label class="small fw-bold">Qui a répondu à la suggestion ?</label>
                         <select id="joueur_select" class="form-select"></select>
                     </div>
                     
@@ -52,28 +76,36 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button onclick="addIndice('positif')" class="btn btn-warning">A montré une carte</button>
-                        <button onclick="addIndice('negatif')" class="btn btn-danger">N'a rien montré (Passé)</button>
+                        <button onclick="addIndice('positif')" class="btn btn-warning fw-bold">A montré UNE carte</button>
+                        <button onclick="addIndice('negatif')" class="btn btn-outline-danger">N'a RIEN montré (Passé)</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-7">
-            <div class="card shadow mb-3">
-                <div class="card-header bg-success text-white d-flex justify-content-between">
-                    🔍 Indices enregistrés
-                    <button class="btn btn-sm btn-outline-light" onclick="removeLast()">Annuler le dernier</button>
+        <div class="col-lg-7">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    📖 Historique des indices
+                    <button class="btn btn-sm btn-light" onclick="removeLast()">Undo</button>
                 </div>
-                <div class="card-body" id="indices_list" style="height: 300px; overflow-y: auto;">
-                    <p class="text-muted text-center mt-5">Aucun indice pour le moment.</p>
+                <div class="card-body" id="indices_list" style="height: 250px; overflow-y: auto;">
+                    <p class="text-muted text-center mt-5">La liste est vide.</p>
                 </div>
             </div>
 
-            <button onclick="solve()" class="btn btn-dark btn-lg w-100 mb-3 shadow">CALCULER LE COUPABLE</button>
+            <div class="card shadow-sm mb-3">
+                <div class="card-body bg-light border">
+                    <label class="form-label small fw-bold">Seuil d'affichage des hypothèses : <span id="seuil_val" class="badge bg-primary">5</span></label>
+                    <input type="range" class="form-range" min="1" max="15" value="5" id="seuil_range" 
+                           oninput="document.getElementById('seuil_val').innerText = this.value">
+                </div>
+            </div>
+
+            <button onclick="solve()" id="solve_btn" class="btn btn-success btn-lg w-100 mb-3 shadow fw-bold">LANCER L'ANALYSE CSP</button>
 
             <div id="result_area" class="alert alert-secondary solution-box shadow-sm">
-                En attente d'indices suffisants...
+                En attente d'analyse...
             </div>
         </div>
     </div>
@@ -91,7 +123,14 @@
             opt.value = i; opt.innerText = "Joueur " + i;
             select.appendChild(opt);
         }
-        indices = []; render();
+    }
+
+    function resetGame() {
+        indices = [];
+        updatePlayersList();
+        render();
+        document.getElementById('result_area').innerHTML = "Partie réinitialisée.";
+        document.getElementById('result_area').className = "alert alert-secondary solution-box shadow-sm";
     }
 
     function addIndice(type, forceJoueur = null) {
@@ -106,41 +145,78 @@
         render();
     }
 
-    function removeLast() { indices.pop(); render(); }
+    function removeLast() {
+        indices.pop();
+        render();
+    }
 
     function render() {
         const list = document.getElementById('indices_list');
-        if(indices.length === 0) { list.innerHTML = '<p class="text-muted text-center mt-5">Aucun indice.</p>'; return; }
+        if(indices.length === 0) {
+            list.innerHTML = '<p class="text-muted text-center mt-5">Aucun indice enregistré.</p>';
+            return;
+        }
         list.innerHTML = indices.map((ind, i) => `
-            <div class="card-indice p-2 bg-white rounded shadow-sm">
-                <span class="badge bg-secondary">#${i+1}</span> 
+            <div class="card-indice p-2 shadow-sm rounded">
+                <span class="badge bg-secondary text-white">#${i+1}</span> 
                 <strong>${ind.joueur == 0 ? 'Moi' : 'Joueur '+ind.joueur}</strong> : 
-                ${ind.type === 'positif' ? 'Possède au moins un de' : (ind.type === 'negatif' ? 'N\'a aucun de' : 'A la carte')} 
-                <span class="text-primary">${ind.cartes.join(', ')}</span>
+                <span class="badge ${ind.type==='negatif'?'bg-danger':'bg-info text-dark'}">${ind.type.replace('_',' ')}</span>
+                <span class="ms-1">${ind.cartes.join(', ')}</span>
             </div>
         `).join('');
     }
 
     async function solve() {
-        const btn = document.querySelector('button[onclick="solve()"]');
-        btn.disabled = true;
+        const btn = document.getElementById('solve_btn');
         const resArea = document.getElementById('result_area');
-        
+        const seuil = document.getElementById('seuil_range').value;
+        const n = document.getElementById('n_joueurs').value;
+
+        btn.disabled = true;
+        resArea.innerHTML = '<div class="spinner-border text-primary" role="status"></div><br>Calcul des mondes possibles...';
+
         try {
             const response = await fetch('/solve', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({indices: indices, n_joueurs: document.getElementById('n_joueurs').value})
+                body: JSON.stringify({
+                    indices: indices, 
+                    n_joueurs: n, 
+                    seuil: seuil
+                })
             });
             const data = await response.json();
-            if(data.status === "found") {
-                resArea.className = "alert alert-success solution-box shadow";
-                resArea.innerHTML = `✅ SOLUTION : ${data.solution.coupable} + ${data.solution.arme} + ${data.solution.lieu}`;
+            
+            if(data.status === "success") {
+                let html = `<div class="badge-count mb-2">Solutions restantes : <span class="badge bg-dark">${data.count}</span></div>`;
+                
+                if(data.count === 1) {
+                    const sol = data.hypotheses[0];
+                    html = `<div class="text-success fw-bold">🎯 SOLUTION UNIQUE TROUVÉE !<br>
+                            <span class="fs-4">${sol.coupable} + ${sol.arme} + ${sol.lieu}</span></div>`;
+                    resArea.className = "alert alert-success solution-box shadow border-success";
+                } else if(data.hypotheses.length > 0) {
+                    html += `<div class="small fw-bold text-primary mt-2">Hypothèses probables :</div>`;
+                    html += `<div class="hypothese-list"><ul class="list-group list-group-flush small">`;
+                    data.hypotheses.forEach(h => {
+                        html += `<li class="list-group-item bg-transparent">${h.coupable} / ${h.arme} / ${h.lieu}</li>`;
+                    });
+                    html += `</ul></div>`;
+                    resArea.className = "alert alert-info solution-box shadow";
+                } else {
+                    html += `<div class="text-muted italic">Trop de solutions (> ${seuil}). Continuez à éliminer des cartes.</div>`;
+                    resArea.className = "alert alert-info solution-box shadow-sm";
+                }
+                resArea.innerHTML = html;
             } else {
-                resArea.className = "alert alert-warning solution-box shadow-sm";
-                resArea.innerText = "🕵️ Pas encore de certitude mathématique...";
+                resArea.className = "alert alert-danger solution-box shadow";
+                resArea.innerHTML = "❌ <strong>Erreur : Conflit d'indices.</strong><br>Il est mathématiquement impossible que ces indices soient tous vrais.";
             }
-        } finally { btn.disabled = false; }
+        } catch(e) {
+            resArea.innerHTML = "❌ Erreur de connexion au serveur.";
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     updatePlayersList();
