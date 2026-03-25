@@ -18,8 +18,9 @@ L'outil permet aussi de quantifier votre progression :
 - **Mode Hypothèses** : Si le nombre de solutions tombe sous un seuil (ex: 3), l'outil liste explicitement les suspects restants pour vous aider à orienter vos prochaines questions.
 
 ## Installer les dépendances
-
-pip install flask pycsp3
+git clone https://github.com/rondeaujf/cluedo.git
+pip install -r requirements.txt
+python app.py
 
 ## Lancer l'application
 python app.py
