@@ -12,6 +12,11 @@ Ce solveur ne se contente pas de "deviner" : il élimine mathématiquement toute
 - **Interface Mobile-Friendly** : Interface web épurée avec Bootstrap pour une utilisation rapide sur smartphone pendant une partie.
 - **Journal d'Indices** : Historique des faits enregistrés avec option d'annulation (Undo).
 
+### 📊 Analyse d'incertitude
+L'outil permet aussi de quantifier votre progression :
+- **Compteur de probabilités** : Affiche combien de combinaisons "Suspect/Arme/Lieu" restent possibles.
+- **Mode Hypothèses** : Si le nombre de solutions tombe sous un seuil (ex: 3), l'outil liste explicitement les suspects restants pour vous aider à orienter vos prochaines questions.
+
 ## Installer les dépendances
 
 pip install flask pycsp3
